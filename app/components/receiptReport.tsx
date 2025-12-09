@@ -5,6 +5,8 @@ import { Home, Download, FileSpreadsheet, Eye, X } from 'lucide-react';
 import { getReceiptInvoices, ReceiptInvoice } from './lib/storage';
 import { generatePDF } from './lib/pdf-utils';
 import { exportToExcel } from './lib/excel-utils';
+// Updated import to include formatDateTime
+import { formatDate, formatDateTime } from './lib/date-utils';
 
 interface ReceiptReportProps {
   onNavigate: (page: string) => void;
@@ -62,9 +64,10 @@ export default function ReceiptReport({ onNavigate }: ReceiptReportProps) {
 
   const selectedInvoice = reportData.find(inv => inv.id === selectedInvoiceId);
 
+  // Main List PDF
   const handleExportPDF = () => {
     const data = reportData.map(item => [
-      new Date(item.date).toLocaleDateString(),
+      formatDate(item.date),
       item.receiptInvoiceNumber,
       item.supplyInvoiceNumber,
       Math.round(item.finished).toString(),
@@ -81,7 +84,7 @@ export default function ReceiptReport({ onNavigate }: ReceiptReportProps) {
 
   const handleExportExcel = () => {
     const data = reportData.map(item => ({
-      'Date': new Date(item.date).toLocaleDateString(),
+      'Date': formatDate(item.date),
       'Receipt Invoice': item.receiptInvoiceNumber,
       'Supply Invoice': item.supplyInvoiceNumber,
       'Finished': Math.round(item.finished),
@@ -91,21 +94,34 @@ export default function ReceiptReport({ onNavigate }: ReceiptReportProps) {
     exportToExcel(data, `receipt-report-${Date.now()}.xlsx`, 'ReceiptReport');
   };
 
+  // --- UPDATED INDIVIDUAL PDF (With Attributes) ---
   const handleDownloadIndividualPDF = (invoice: typeof selectedInvoice) => {
     if (!invoice) return;
-    const docTitle = "Receipt Invoice";
-    const columns = ["Goods Name", "Finished Qty", "Damaged Qty", "Total Qty", "Attributes"];
-    const tableData = invoice.items.map(item => [
+    
+    // Create rows with Attributes at the end
+    const rows = invoice.items.map(item => [
+      formatDate(invoice.date),
+      invoice.receiptInvoiceNumber,
+      invoice.supplyInvoiceNumber,
       item.goodsName,
       Math.round(item.finishedQuantity).toString(),
       Math.round(item.damagedQuantity).toString(),
       Math.round(item.finishedQuantity + item.damagedQuantity).toString(),
-      item.attributes.length > 0 ? item.attributes.join(", ") : "N/A"
+      item.attributes.length > 0 ? item.attributes.join(', ') : '-' // Attributes column data
     ]);
+
+    // Calculate Totals
+    const totalFin = invoice.items.reduce((sum, i) => sum + i.finishedQuantity, 0);
+    const totalDmg = invoice.items.reduce((sum, i) => sum + i.damagedQuantity, 0);
+    const totalAll = totalFin + totalDmg;
+
+    // Add Total Row (Empty string at end for Attributes column)
+    rows.push(['', '', '', 'TOTAL', totalFin.toString(), totalDmg.toString(), totalAll.toString(), '']);
+
     generatePDF(
-      docTitle,
-      columns,
-      tableData,
+      `Receipt Invoice: ${invoice.receiptInvoiceNumber}`,
+      ['Date', 'Receipt Inv No', 'Supply Inv No', 'Goods Name', 'Finished Qty', 'Damaged Qty', 'Total', 'Attributes'],
+      rows,
       `receipt-invoice.${invoice.receiptInvoiceNumber}-${Date.now()}.pdf`
     );
   };
@@ -231,7 +247,7 @@ export default function ReceiptReport({ onNavigate }: ReceiptReportProps) {
             {reportData.length > 0 ? (
               reportData.map((item, idx) => (
                 <tr key={idx} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">{new Date(item.date).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{formatDate(item.date)}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{item.receiptInvoiceNumber}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{item.supplyInvoiceNumber}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{Math.round(item.finished)}</td>
@@ -294,7 +310,7 @@ export default function ReceiptReport({ onNavigate }: ReceiptReportProps) {
                 </div>
                 <div>
                   <span className="text-xs text-gray-500">Date</span>
-                  <div className="text-sm text-gray-800">{new Date(selectedInvoice.date).toLocaleDateString()}</div>
+                  <div className="text-sm text-gray-800">{formatDate(selectedInvoice.date)}</div>
                 </div>
                 {selectedInvoice.jobWorker && (
                   <div>
@@ -369,8 +385,9 @@ export default function ReceiptReport({ onNavigate }: ReceiptReportProps) {
                     Close
                   </button>
                 </div>
+                {/* FIXED THIS LINE BELOW */}
                 <div className="mt-4 text-xs text-gray-400 text-right">
-                  Generated on {new Date().toLocaleString()}
+                  Generated on {formatDateTime(new Date())}
                 </div>
               </div>
             </div>

@@ -5,6 +5,8 @@ import { Home, Download, FileSpreadsheet, Eye } from 'lucide-react';
 import { getSupplyInvoices } from './lib/storage';
 import { generatePDF } from './lib/pdf-utils';
 import { exportToExcel } from './lib/excel-utils';
+// Updated import
+import { formatDate, formatDateTime } from './lib/date-utils';
 
 interface OriginalSupplyReportProps {
   onNavigate: (page: string) => void;
@@ -64,7 +66,7 @@ export default function OriginalSupplyReport({ onNavigate }: OriginalSupplyRepor
   // Export the whole list
   const handleExportListPDF = () => {
     const data = filteredSupplyInvoices.map((item: any) => [
-      new Date(item.date).toLocaleDateString(),
+      formatDate(item.date),
       item.invoiceNumber,
       item.items.reduce((sum: number, i: any) => sum + i.quantity, 0)
     ]);
@@ -78,7 +80,7 @@ export default function OriginalSupplyReport({ onNavigate }: OriginalSupplyRepor
 
   const handleExportExcel = () => {
     const data = filteredSupplyInvoices.map((item: any) => ({
-      Date: new Date(item.date).toLocaleDateString(),
+      Date: formatDate(item.date),
       'Invoice Number': item.invoiceNumber,
       Quantity: item.items.reduce((sum: number, i: any) => sum + i.quantity, 0)
     }));
@@ -207,7 +209,7 @@ export default function OriginalSupplyReport({ onNavigate }: OriginalSupplyRepor
             {filteredSupplyInvoices.length > 0 ? (
               filteredSupplyInvoices.map((item: any) => (
                 <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">{new Date(item.date).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{formatDate(item.date)}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
                       onClick={() => setPreviewInvoiceId(item.id)}
@@ -249,7 +251,7 @@ export default function OriginalSupplyReport({ onNavigate }: OriginalSupplyRepor
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
               <span className="text-xs text-gray-500 uppercase font-bold">Date</span>
-              <div className="text-sm text-gray-900 mt-1">{new Date(invoicePreview.date).toLocaleDateString()}</div>
+              <div className="text-sm text-gray-900 mt-1">{formatDate(invoicePreview.date)}</div>
             </div>
             <div>
               <span className="text-xs text-gray-500 uppercase font-bold">Invoice Number</span>
@@ -296,7 +298,7 @@ export default function OriginalSupplyReport({ onNavigate }: OriginalSupplyRepor
           </div>
           
           <div className="mt-2 text-xs text-gray-400 text-right">
-            Generated on: {new Date().toLocaleString()}
+            Generated on: {formatDateTime(new Date())}
           </div>
         </div>
       )}

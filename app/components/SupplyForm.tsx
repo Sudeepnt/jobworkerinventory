@@ -7,17 +7,12 @@ import { addSupplyInvoice, getGoods } from './lib/storage';
 interface GoodsRow {
   id: string;
   goodsName: string;
-  quantity: number;
+  quantity: number | string;
 }
 
 interface SupplyFormProps {
   onNavigate: (page: string) => void;
 }
-
-
-
-
-
 
 export default function SupplyForm({ onNavigate }: SupplyFormProps) {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -25,7 +20,7 @@ export default function SupplyForm({ onNavigate }: SupplyFormProps) {
   const [jobWorker, setJobWorker] = useState('');
   const [narration, setNarration] = useState('');
   const [rows, setRows] = useState<GoodsRow[]>([
-    { id: Date.now().toString(), goodsName: '', quantity: 0 }
+    { id: Date.now().toString(), goodsName: '', quantity: '' }
   ]);
   const [saving, setSaving] = useState(false);
   const [goodsList, setGoodsList] = useState<string[]>([]);
@@ -38,7 +33,7 @@ export default function SupplyForm({ onNavigate }: SupplyFormProps) {
   }, []);
 
   const addRow = () => {
-    setRows([...rows, { id: Date.now().toString(), goodsName: '', quantity: 0 }]);
+    setRows([...rows, { id: Date.now().toString(), goodsName: '', quantity: '' }]);
   };
 
   const removeRow = (id: string) => {
@@ -51,47 +46,38 @@ export default function SupplyForm({ onNavigate }: SupplyFormProps) {
     setRows(rows.map(row => (row.id === id ? { ...row, [field]: value } : row)));
   };
 
-
-
-
-
-
   const handleSave = async () => {
     if (!invoiceNumber.trim()) {
       alert('Please enter invoice number');
       return;
     }
-    const validRows = rows.filter(row => row.goodsName.trim() && row.quantity > 0);
+    const validRows = rows.filter(row => row.goodsName.trim() && Number(row.quantity) > 0);
     if (validRows.length === 0) {
       alert('Please add at least one item with goods name and quantity');
       return;
     }
 
-    
-      setSaving(true);
+    setSaving(true);
     try {
       await addSupplyInvoice({
         date,
         invoiceNumber,
         jobWorker,
         narration,
-        items: validRows
+        items: validRows.map(r => ({
+          goodsName: r.goodsName,
+          quantity: Number(r.quantity)
+        }))
       });
       alert('Supply invoice saved successfully!');
       onNavigate('dashboard');
     } catch (error: any) {
-      // FIX: Alert the actual error message from storage.ts
       alert(`Failed to save: ${error.message}`);
       console.error('Save Error:', error);
     } finally {
       setSaving(false);
     }
-}; 
-
-
-
-
-
+  };
 
   return (
     <div className="p-8">
@@ -118,124 +104,130 @@ export default function SupplyForm({ onNavigate }: SupplyFormProps) {
       >
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <label>Date</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
             <input
               type="date"
               value={date}
               onChange={e => setDate(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <div>
-            <label>Invoice Number</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Invoice Number</label>
             <input
               type="text"
               value={invoiceNumber}
               onChange={e => setInvoiceNumber(e.target.value)}
               placeholder="Invoice Number"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 mb-4">
           <div>
-            <label>Job Worker (Optional)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Job Worker (Optional)</label>
             <input
               type="text"
               value={jobWorker}
               onChange={e => setJobWorker(e.target.value)}
-              placeholder="Job Worker"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              placeholder="Job Worker Name"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
         </div>
 
         <div className="mb-4">
-          <label>Narration</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Narration</label>
           <textarea
             value={narration}
             onChange={e => setNarration(e.target.value)}
-            placeholder="Additional notes"
+            placeholder="Additional notes..."
             rows={3}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
 
-        <span>Goods</span>
-        <table className="w-full border mt-2">
-          <thead>
-            <tr className="bg-gray-50">
-              <th>Goods Name</th>
-              <th>Quantity</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(row => (
-              <tr key={row.id} className="hover:bg-gray-50">
-                <td>
-                  <input
-                    type="text"
-                    value={row.goodsName}
-                    onChange={e => updateRow(row.id, 'goodsName', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    list="goods-list"
-                  />
-                  <datalist id="goods-list">
-                    {goodsList.map((g, i) => (
-                      <option key={i} value={g} />
-                    ))}
-                  </datalist>
-                </td>
-                <td>
-                  <input
-                    type="number"
-                    min={0}
-                    value={row.quantity}
-                    onChange={e =>
-                      updateRow(
-                        row.id,
-                        'quantity',
-                        Math.max(0, parseInt(e.target.value) || 0)
-                      )}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  />
-                </td>
-                <td className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => removeRow(row.id)}
-                    disabled={rows.length === 1}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </td>
+        <span className="block text-xs text-gray-500 mb-2">Goods</span>
+        <div className="overflow-x-auto">
+          <table className="w-full border">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Goods Name</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Quantity</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map(row => (
+                <tr key={row.id} className="hover:bg-gray-50">
+                  <td className="px-3 py-2">
+                    <input
+                      type="text"
+                      value={row.goodsName}
+                      onChange={e => updateRow(row.id, 'goodsName', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Select or type goods name"
+                      list="goods-list"
+                    />
+                    <datalist id="goods-list">
+                      {goodsList.map((g, i) => (
+                        <option key={i} value={g} />
+                      ))}
+                    </datalist>
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      type="number"
+                      min={0}
+                      value={row.quantity}
+                      onChange={e =>
+                        updateRow(
+                          row.id,
+                          'quantity',
+                          e.target.value === '' ? '' : Number(e.target.value)
+                        )}
+                      placeholder="0"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <button
+                      type="button"
+                      onClick={() => removeRow(row.id)}
+                      disabled={rows.length === 1}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        
         <button
           type="button"
           onClick={addRow}
-          className="mt-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
+          className="mt-2 flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
         >
-          <Plus className="inline-block w-4 h-4 mr-1" /> Add Row
+          <Plus className="w-4 h-4" /> Add Row
         </button>
 
         <div className="flex gap-4 mt-6">
           <button
             type="button"
             onClick={() => onNavigate('dashboard')}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-300 rounded-lg"
+            disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 disabled:opacity-50"
           >
             <ArrowLeft className="w-4 h-4" /> Cancel
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 rounded-lg text-white"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {saving ? 'Saving...' : 'Save Invoice'}

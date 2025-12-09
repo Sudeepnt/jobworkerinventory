@@ -59,7 +59,7 @@ export interface BackupHistoryEntry {
   filename: string;
 }
 
-// --- HELPER: GENERATE DIFF (FIXED TYPES) ---
+// --- HELPER: GENERATE DIFF ---
 
 function generateDiff(oldData: any, newData: any, type: 'supply' | 'receipt') {
   const changes: Array<{ field: string; old: string; new: string }> = [];
@@ -69,7 +69,6 @@ function generateDiff(oldData: any, newData: any, type: 'supply' | 'receipt') {
     changes.push({ field: 'Date', old: oldData.date, new: newData.date });
   }
 
-  // Map DB fields to Form fields for comparison
   const oldInvNum = type === 'supply' ? oldData.invoice_number : oldData.receipt_invoice_number;
   const newInvNum = type === 'supply' ? newData.invoiceNumber : newData.receiptInvoiceNumber;
   
@@ -77,7 +76,6 @@ function generateDiff(oldData: any, newData: any, type: 'supply' | 'receipt') {
     changes.push({ field: 'Invoice Number', old: oldInvNum || 'N/A', new: newInvNum });
   }
 
-  // For Receipt: Supply Ref Number
   if (type === 'receipt') {
     if (newData.supplyInvoiceNumber && oldData.supply_invoice_number !== newData.supplyInvoiceNumber) {
       changes.push({ field: 'Supply Ref', old: oldData.supply_invoice_number || 'N/A', new: newData.supplyInvoiceNumber });
@@ -98,16 +96,13 @@ function generateDiff(oldData: any, newData: any, type: 'supply' | 'receipt') {
       ? oldData.supply_invoice_items 
       : oldData.receipt_invoice_items;
 
-    // FIX: Explicitly type the map to allow 'any' access
     const oldMap = new Map<string, any>(oldItems.map((i: any) => [i.goods_name, i]));
     const newMap = new Map<string, any>(newData.items.map((i: any) => [i.goodsName, i]));
 
-    // Check for Updates and Additions
     newMap.forEach((newItem: any, name: string) => {
       const oldItem = oldMap.get(name);
       
       if (!oldItem) {
-        // New Item Added
         const desc = type === 'supply' 
           ? `Qty: ${newItem.quantity}` 
           : `Fin: ${newItem.finishedQuantity}, Dmg: ${newItem.damagedQuantity}`;
@@ -117,9 +112,7 @@ function generateDiff(oldData: any, newData: any, type: 'supply' | 'receipt') {
           new: desc
         });
       } else {
-        // Item Exists - Compare Values
         if (type === 'supply') {
-          // Comparing Supply Items (quantity vs quantity)
           if (Number(oldItem.quantity) !== Number(newItem.quantity)) {
             changes.push({ 
               field: `Item Qty: ${name}`, 
@@ -128,8 +121,6 @@ function generateDiff(oldData: any, newData: any, type: 'supply' | 'receipt') {
             });
           }
         } else {
-          // Comparing Receipt Items (finished/damaged vs finished/damaged)
-          // Note: DB uses snake_case, Frontend uses camelCase
           if (Number(oldItem.finished_quantity) !== Number(newItem.finishedQuantity)) {
             changes.push({ 
               field: `Item Finished: ${name}`, 
@@ -145,7 +136,6 @@ function generateDiff(oldData: any, newData: any, type: 'supply' | 'receipt') {
             });
           }
           
-          // Compare Attributes
           const oldAttrs = Array.isArray(oldItem.attributes) ? oldItem.attributes.sort().join(',') : '';
           const newAttrs = Array.isArray(newItem.attributes) ? newItem.attributes.sort().join(',') : '';
           
@@ -160,7 +150,6 @@ function generateDiff(oldData: any, newData: any, type: 'supply' | 'receipt') {
       }
     });
 
-    // Check for Removals
     oldMap.forEach((oldItem: any, name: string) => {
       if (!newMap.has(name)) {
         changes.push({ field: `Item Removed: ${name}`, old: 'Present', new: 'Removed' });
@@ -235,7 +224,6 @@ export async function getSupplyInvoices(): Promise<SupplyInvoice[]> {
 }
 
 export async function addSupplyInvoice(invoice: Omit<SupplyInvoice, 'id' | 'createdAt'>): Promise<SupplyInvoice | null> {
-  // 1. Insert Header
   const { data: invoiceData, error: invoiceError } = await supabase
     .from('supply_invoices')
     .insert([{
@@ -249,7 +237,6 @@ export async function addSupplyInvoice(invoice: Omit<SupplyInvoice, 'id' | 'crea
 
   if (invoiceError) throw new Error(`Error adding supply invoice header: ${invoiceError.message}`);
 
-  // 2. Insert Items
   const itemsToInsert = invoice.items.map(item => ({
     supply_invoice_id: invoiceData.id,
     goods_name: item.goodsName,
@@ -265,7 +252,6 @@ export async function addSupplyInvoice(invoice: Omit<SupplyInvoice, 'id' | 'crea
     throw new Error(`Error adding supply invoice items: ${itemsError.message}`);
   }
 
-  // 3. Add Goods
   for (const item of invoice.items) {
     await addGoods(item.goodsName);
   }
@@ -278,7 +264,6 @@ export async function addSupplyInvoice(invoice: Omit<SupplyInvoice, 'id' | 'crea
 }
 
 export async function updateSupplyInvoice(id: string, update: Partial<Omit<SupplyInvoice, 'id' | 'createdAt'>>, reason: string) {
-  // 1. Fetch Existing Data for History Comparison
   const { data: oldData } = await supabase
     .from('supply_invoices')
     .select('*, supply_invoice_items(*)')
@@ -287,10 +272,8 @@ export async function updateSupplyInvoice(id: string, update: Partial<Omit<Suppl
 
   if (!oldData) throw new Error('Invoice not found');
 
-  // 2. Generate Diff
   const changeDetails = generateDiff(oldData, update, 'supply');
 
-  // 3. Update Header
   const { error: invoiceError } = await supabase
     .from('supply_invoices')
     .update({
@@ -303,7 +286,6 @@ export async function updateSupplyInvoice(id: string, update: Partial<Omit<Suppl
 
   if (invoiceError) throw new Error(`Error updating supply invoice: ${invoiceError.message}`);
 
-  // 4. Update Items (Delete old, Insert new)
   if (update.items) {
     await supabase.from('supply_invoice_items').delete().eq('supply_invoice_id', id);
     
@@ -320,7 +302,6 @@ export async function updateSupplyInvoice(id: string, update: Partial<Omit<Suppl
     }
   }
 
-  // 5. Log Change with Diff
   await addInvoiceChange({
     invoiceId: id,
     invoiceNumber: update.invoiceNumber || oldData.invoice_number,
@@ -375,7 +356,6 @@ export async function getReceiptInvoices(): Promise<ReceiptInvoice[]> {
 }
 
 export async function addReceiptInvoice(invoice: Omit<ReceiptInvoice, 'id' | 'createdAt'>): Promise<ReceiptInvoice | null> {
-  // 1. Insert Header
   const { data: invoiceData, error: invoiceError } = await supabase
     .from('receipt_invoices')
     .insert([{
@@ -391,7 +371,6 @@ export async function addReceiptInvoice(invoice: Omit<ReceiptInvoice, 'id' | 'cr
 
   if (invoiceError) throw new Error(`Error adding receipt invoice header: ${invoiceError.message}`);
 
-  // 2. Insert Items
   const itemsToInsert = invoice.items.map(item => ({
     receipt_invoice_id: invoiceData.id,
     goods_name: item.goodsName,
@@ -417,7 +396,6 @@ export async function addReceiptInvoice(invoice: Omit<ReceiptInvoice, 'id' | 'cr
 }
 
 export async function updateReceiptInvoice(id: string, update: Partial<Omit<ReceiptInvoice, 'id' | 'createdAt'>>, reason: string) {
-  // 1. Fetch Existing
   const { data: oldData } = await supabase
     .from('receipt_invoices')
     .select('*, receipt_invoice_items(*)')
@@ -426,10 +404,8 @@ export async function updateReceiptInvoice(id: string, update: Partial<Omit<Rece
 
   if (!oldData) throw new Error('Invoice not found');
 
-  // 2. Generate Diff
   const changeDetails = generateDiff(oldData, update, 'receipt');
 
-  // 3. Update Header
   const { error: invoiceError } = await supabase
     .from('receipt_invoices')
     .update({
@@ -443,7 +419,6 @@ export async function updateReceiptInvoice(id: string, update: Partial<Omit<Rece
 
   if (invoiceError) throw new Error(`Error updating receipt invoice: ${invoiceError.message}`);
 
-  // 4. Update Items
   if (update.items) {
     await supabase.from('receipt_invoice_items').delete().eq('receipt_invoice_id', id);
     
@@ -458,7 +433,6 @@ export async function updateReceiptInvoice(id: string, update: Partial<Omit<Rece
     await supabase.from('receipt_invoice_items').insert(itemsToInsert);
   }
 
-  // 5. Log Change with Diff
   await addInvoiceChange({
     invoiceId: id,
     invoiceNumber: update.receiptInvoiceNumber || oldData.receipt_invoice_number,
@@ -506,7 +480,6 @@ export async function addInvoiceChange(change: Omit<InvoiceChange, 'id'>): Promi
     }]);
   if (error) console.error('Error logging change (non-fatal):', error);
 }
- // --- BACKUP HISTORY (Database Version) ---
 
 export async function getBackupHistory(): Promise<BackupHistoryEntry[]> {
   const { data, error } = await supabase
@@ -541,18 +514,6 @@ export async function addBackupHistoryEntry(entry: Omit<BackupHistoryEntry, 'id'
   }
 }
 
-// Remove saveBackupHistory as it is no longer needed for DB
-export function saveBackupHistory(history: BackupHistoryEntry[]): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem('inventory_backup_history', JSON.stringify(history));
-  } catch (error) {
-    console.error('Error saving backup history:', error);
-  }
-}
-
- 
-
 export async function exportAllData(): Promise<string> {
   const goods = await getGoods();
   const supplyInvoices = await getSupplyInvoices();
@@ -586,6 +547,19 @@ export async function importAllData(jsonData: string): Promise<boolean> {
         await addReceiptInvoice(invoice);
       }
     }
+    if (data.invoiceChanges && Array.isArray(data.invoiceChanges)) {
+      const { error } = await supabase
+        .from('invoice_changes')
+        .insert(data.invoiceChanges.map((change: any) => ({
+          invoice_id: change.invoiceId,
+          invoice_number: change.invoiceNumber,
+          change_date: change.changeDate,
+          reason: change.reason,
+          change_details: change.changeDetails
+        })));
+      
+      if (error) console.error('Error restoring history:', error);
+    }
     return true;
   } catch (error) {
     console.error('Error importing data:', error);
@@ -593,25 +567,14 @@ export async function importAllData(jsonData: string): Promise<boolean> {
   }
 }
 
-
- 
-
 export async function clearDatabase(): Promise<boolean> {
   try {
- 
-    
-    // 1. Clear Items
     await supabase.from('receipt_invoice_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     await supabase.from('supply_invoice_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    
-    // 2. Clear Invoices
     await supabase.from('receipt_invoices').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     await supabase.from('supply_invoices').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    
-    // 3. Clear Changes & Goods
     await supabase.from('invoice_changes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     await supabase.from('goods').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    
     return true;
   } catch (error) {
     console.error('Error clearing database:', error);

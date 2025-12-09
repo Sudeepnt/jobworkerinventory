@@ -5,6 +5,7 @@ import { Home, Download, FileSpreadsheet, Eye, Search } from 'lucide-react';
 import { getGoods, getSupplyInvoices, getReceiptInvoices } from './lib/storage';
 import { generatePDF } from './lib/pdf-utils';
 import { exportToExcel } from './lib/excel-utils';
+import { formatDate } from './lib/date-utils';
 
 interface GoodsReportProps {
   onNavigate: (page: string) => void;
@@ -28,7 +29,7 @@ function GoodHistoryModal({ data, onClose }: { data: any, onClose: () => void })
 
   const handleDownloadPDF = () => {
     const tableData = rows.map(r => [
-      new Date(r.date).toLocaleDateString(),
+      formatDate(r.date),
       r.name,
       r.recQty.toString(),
       r.finished.toString(),
@@ -74,7 +75,7 @@ function GoodHistoryModal({ data, onClose }: { data: any, onClose: () => void })
                   rows.map((row, idx) => (
                     <tr key={idx} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">
-                        {new Date(row.date).toLocaleDateString()}
+                        {formatDate(row.date)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {row.name}

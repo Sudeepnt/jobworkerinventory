@@ -12,6 +12,7 @@ import {
   Receipt,
 } from 'lucide-react';
 import { getSupplyInvoices, getReceiptInvoices, SupplyInvoice, ReceiptInvoice } from './lib/storage';
+import { formatDate } from './lib/date-utils';
 import {
   AreaChart,
   Area,
@@ -341,7 +342,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                       {invoice.type === 'supply' ? invoice.invoiceNumber : invoice.receiptInvoiceNumber}
                     </td>
                     <td className="py-4 px-6 text-gray-600">
-                      {new Date(invoice.date).toLocaleDateString()}
+                      {formatDate(invoice.date)}
                     </td>
                     <td className="py-4 px-6 text-gray-600">
                       {invoice.type === 'supply'

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Home, FileText, Package, BarChart3, FileStack, Settings, Database, History, Heart } from 'lucide-react';
+import Image from 'next/image';
 
 interface SidebarProps {
   currentPage: string;
@@ -50,16 +51,22 @@ export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
       
       {/* Footer */}
       <div className="p-4 border-t border-gray-200">
-        <div className="flex items-center justify-center gap-1 text-sm text-gray-600">
-          <span>Built </span>
-          <span>by</span>
+        {/* Changed gap-1 to gap-0.5 to bring them very close */}
+        <div className="flex items-center justify-center gap-0.5 text-sm text-gray-600">
+          <span>Built by</span>
           <a 
             href="https://crodal.com" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="font-bold text-md text-blue-600 hover:text-blue-700 transition-colors"
+            className="hover:opacity-80 transition-opacity flex items-center"
           >
-            Crodal
+            <Image 
+              src="/crodalLogo.png" 
+              alt="Crodal" 
+              width={120}
+              height={36}
+              className="object-contain"
+            />
           </a>
         </div>
       </div>

@@ -3,12 +3,13 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, Trash2, Save, Home } from 'lucide-react';
 import { addReceiptInvoice, getSupplyInvoices, SupplyInvoice } from './lib/storage';
+import { formatDate } from './lib/date-utils';
 
 interface GoodsRow {
   id: string;
   goodsName: string;
-  finishedQuantity: number;
-  damagedQuantity: number;
+  finishedQuantity: number | string;
+  damagedQuantity: number | string;
   attributes: string[];
 }
 
@@ -19,14 +20,17 @@ interface ReceiptFormProps {
 const PREDEFINED_ATTRIBUTES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
 export default function ReceiptForm({ onNavigate }: ReceiptFormProps) {
+  // Input type="date" requires YYYY-MM-DD format for value (Visual display depends on browser)
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [receiptInvoiceNumber, setReceiptInvoiceNumber] = useState('');
   const [selectedSupplyId, setSelectedSupplyId] = useState('');
   const [jobWorker, setJobWorker] = useState('');
   const [narration, setNarration] = useState('');
+  
   const [rows, setRows] = useState<GoodsRow[]>([
-    { id: Date.now().toString(), goodsName: '', finishedQuantity: 0, damagedQuantity: 0, attributes: [] }
+    { id: Date.now().toString(), goodsName: '', finishedQuantity: '', damagedQuantity: '', attributes: [] }
   ]);
+  
   const [supplyInvoices, setSupplyInvoices] = useState<SupplyInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -49,19 +53,18 @@ export default function ReceiptForm({ onNavigate }: ReceiptFormProps) {
         (selectedSupply.items || []).map((item: any, index: number) => ({
           id: `${Date.now()}-${index}`,
           goodsName: item.goodsName,
-          finishedQuantity: 0,
-          damagedQuantity: 0,
+          finishedQuantity: '',
+          damagedQuantity: '',
           attributes: [],
         }))
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSupplyId]);
 
   const addRow = () => {
     setRows([
       ...rows,
-      { id: Date.now().toString(), goodsName: '', finishedQuantity: 0, damagedQuantity: 0, attributes: [] }
+      { id: Date.now().toString(), goodsName: '', finishedQuantity: '', damagedQuantity: '', attributes: [] }
     ]);
   };
 
@@ -97,7 +100,11 @@ export default function ReceiptForm({ onNavigate }: ReceiptFormProps) {
       return;
     }
 
-    const validRows = rows.filter(
+    const validRows = rows.map(row => ({
+      ...row,
+      finishedQuantity: Number(row.finishedQuantity) || 0,
+      damagedQuantity: Number(row.damagedQuantity) || 0
+    })).filter(
       row => row.goodsName.trim() && (row.finishedQuantity > 0 || row.damagedQuantity > 0)
     );
 
@@ -188,7 +195,8 @@ export default function ReceiptForm({ onNavigate }: ReceiptFormProps) {
               <option value="">-- Select Supply Invoice --</option>
               {supplyInvoices.map(invoice => (
                 <option key={invoice.id} value={invoice.id}>
-                  {invoice.invoiceNumber} - {new Date(invoice.date).toLocaleDateString()} ({invoice.items.length} items)
+                  {/* Strict Date Formatting Here */}
+                  {invoice.invoiceNumber} - {formatDate(invoice.date)} ({invoice.items.length} items)
                 </option>
               ))}
             </select>
@@ -244,8 +252,8 @@ export default function ReceiptForm({ onNavigate }: ReceiptFormProps) {
                       min={0}
                       value={row.finishedQuantity}
                       onChange={e => {
-                        const val = parseInt(e.target.value) || 0;
-                        updateRow(row.id, 'finishedQuantity', Math.max(0, val));
+                        const val = e.target.value;
+                        updateRow(row.id, 'finishedQuantity', val === '' ? '' : Number(val));
                       }}
                       placeholder="0"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -257,8 +265,8 @@ export default function ReceiptForm({ onNavigate }: ReceiptFormProps) {
                       min={0}
                       value={row.damagedQuantity}
                       onChange={e => {
-                        const val = parseInt(e.target.value) || 0;
-                        updateRow(row.id, 'damagedQuantity', Math.max(0, val));
+                        const val = e.target.value;
+                        updateRow(row.id, 'damagedQuantity', val === '' ? '' : Number(val));
                       }}
                       placeholder="0"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"

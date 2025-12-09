@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Home, Download, FileSpreadsheet, Search, X } from 'lucide-react';
 import { getReceiptInvoices } from './lib/storage';
+import { generatePDF } from './lib/pdf-utils';
+import { formatDate } from './lib/date-utils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -111,7 +113,7 @@ export default function AttributeReport({ onNavigate }: AttributeReportProps) {
     return reportData.filter((item: any) =>
       item.receiptInvoiceNumber.toLowerCase().includes(query) ||
       item.supplyInvoiceNumber.toLowerCase().includes(query) ||
-      new Date(item.date).toLocaleDateString().toLowerCase().includes(query)
+      formatDate(item.date).toLowerCase().includes(query)
     );
   }, [reportData, searchQuery]);
 
@@ -140,7 +142,7 @@ export default function AttributeReport({ onNavigate }: AttributeReportProps) {
     doc.text('Attribute Report', 14, 20);
 
     const tableData = searchedData.map((item: any) => [
-      new Date(item.date).toLocaleDateString(),
+      formatDate(item.date),
       item.receiptInvoiceNumber,
       item.supplyInvoiceNumber,
       item.A || 0,
@@ -167,7 +169,7 @@ export default function AttributeReport({ onNavigate }: AttributeReportProps) {
 
   const handleExportExcel = () => {
     const data = searchedData.map((item: any) => ({
-      'Date': new Date(item.date).toLocaleDateString(),
+      'Date': formatDate(item.date),
       'Receipt Invoice': item.receiptInvoiceNumber,
       'Supply Invoice': item.supplyInvoiceNumber,
       'A': item.A || 0,
@@ -184,6 +186,34 @@ export default function AttributeReport({ onNavigate }: AttributeReportProps) {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'AttributeReport');
     XLSX.writeFile(wb, `attribute-report-${Date.now()}.xlsx`);
+  };
+
+  // --- UPDATED: PDF Download for Preview Modal ---
+  const handleDetailPDF = () => {
+    if (!selectedDetail) return;
+    const details = getDetailedData();
+    
+    // Format: Date | Receipt Inv No | Supply Inv No | Goods Name | Total
+    const rows = details.map((d: any) => [
+      formatDate(selectedDetail.date),
+      selectedDetail.receiptInvoiceNumber,
+      selectedDetail.supplyInvoiceNumber,
+      d.goodsName,
+      (d.finishedQuantity + d.damagedQuantity).toString() // Total
+    ]);
+
+    // Calculate Grand Total
+    const totalAll = details.reduce((sum: number, d: any) => sum + d.finishedQuantity + d.damagedQuantity, 0);
+
+    // Add Total Row
+    rows.push(['', '', '', 'TOTAL', totalAll.toString()]);
+
+    generatePDF(
+      `Attribute ${selectedDetail.attribute} Details`,
+      ['Date', 'Receipt Inv No', 'Supply Inv No', 'Goods Name', 'Total'],
+      rows,
+      `Attr_${selectedDetail.attribute}_${selectedDetail.receiptInvoiceNumber}.pdf`
+    );
   };
 
   if (loading) {
@@ -233,66 +263,23 @@ export default function AttributeReport({ onNavigate }: AttributeReportProps) {
           <label className="block text-sm font-medium text-gray-700">Date Range</label>
           
           <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={() => setDateRange('today')}
-              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                dateRange === 'today'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              Today
-            </button>
-            <button
-              onClick={() => setDateRange('1week')}
-              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                dateRange === '1week'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              1 Week
-            </button>
-            <button
-              onClick={() => setDateRange('15days')}
-              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                dateRange === '15days'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              15 Days
-            </button>
-            <button
-              onClick={() => setDateRange('1month')}
-              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                dateRange === '1month'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              1 Month
-            </button>
-            <button
-              onClick={() => setDateRange('6months')}
-              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                dateRange === '6months'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              6 Month
-            </button>
-            <button
-              onClick={() => setDateRange('custom')}
-              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                dateRange === 'custom'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              Custom
-            </button>
+            {['today', '1week', '15days', '1month', '6months', 'custom'].map(opt => (
+              <button
+                key={opt}
+                onClick={() => setDateRange(opt)}
+                className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                  dateRange === opt
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {opt === 'today' ? 'Today' :
+                 opt === '1week' ? '1 Week' :
+                 opt === '15days' ? '15 Days' :
+                 opt === '1month' ? '1 Month' :
+                 opt === '6months' ? '6 Month' : 'Custom'}
+              </button>
+            ))}
           </div>
 
           {dateRange === 'custom' && (
@@ -337,7 +324,7 @@ export default function AttributeReport({ onNavigate }: AttributeReportProps) {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Main Table */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -358,7 +345,7 @@ export default function AttributeReport({ onNavigate }: AttributeReportProps) {
                 searchedData.map((item: any, index: number) => (
                   <tr key={index} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(item.date).toLocaleDateString()}
+                      {formatDate(item.date)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.receiptInvoiceNumber}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.supplyInvoiceNumber}</td>
@@ -390,72 +377,76 @@ export default function AttributeReport({ onNavigate }: AttributeReportProps) {
         </div>
       </div>
 
-      {/* Detail Modal */}
+      {/* --- PREVIEW MODAL (UPDATED WITH NEW COLUMNS) --- */}
       {selectedDetail && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Attribute {selectedDetail.attribute} Details</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Receipt: {selectedDetail.receiptInvoiceNumber} | Supply: {selectedDetail.supplyInvoiceNumber}
-                </p>
-                <p className="text-sm text-gray-600">
-                  Date: {new Date(selectedDetail.date).toLocaleDateString()}
-                </p>
-              </div>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            
+            {/* Header */}
+            <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-white">
+              <h2 className="text-2xl font-bold text-gray-900">
+                Attribute {selectedDetail.attribute} Details
+              </h2>
               <button
                 onClick={() => setSelectedDetail(null)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
               >
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6" />
               </button>
             </div>
             
-            <div className="p-6">
-              <table className="w-full border border-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Goods Name</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Finished Qty</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Damaged Qty</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {getDetailedData().map((detail: any, idx: number) => (
-                    <tr key={idx} className="border-t border-gray-200">
-                      <td className="px-4 py-2 text-sm text-gray-800">{detail.goodsName}</td>
-                      <td className="px-4 py-2 text-sm text-right text-gray-800">{detail.finishedQuantity}</td>
-                      <td className="px-4 py-2 text-sm text-right text-gray-800">{detail.damagedQuantity}</td>
-                      <td className="px-4 py-2 text-sm text-right font-semibold text-gray-900">
-                        {detail.finishedQuantity + detail.damagedQuantity}
+            {/* Table Content */}
+            <div className="p-8 bg-white min-h-[300px]">
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-blue-500 text-white">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-bold uppercase">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-bold uppercase">Receipt Inv No</th>
+                      <th className="px-6 py-3 text-left text-xs font-bold uppercase">Supply Inv No</th>
+                      <th className="px-6 py-3 text-left text-xs font-bold uppercase">Goods Name</th>
+                      <th className="px-6 py-3 text-right text-xs font-bold uppercase">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {getDetailedData().map((detail: any, idx: number) => (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm text-gray-600">{formatDate(selectedDetail.date)}</td>
+                        <td className="px-6 py-4 text-sm text-gray-900">{selectedDetail.receiptInvoiceNumber}</td>
+                        <td className="px-6 py-4 text-sm text-gray-900">{selectedDetail.supplyInvoiceNumber}</td>
+                        <td className="px-6 py-4 text-sm text-gray-900">{detail.goodsName}</td>
+                        <td className="px-6 py-4 text-sm text-gray-900 text-right font-semibold">
+                          {detail.finishedQuantity + detail.damagedQuantity}
+                        </td>
+                      </tr>
+                    ))}
+                    {/* Total Row */}
+                    <tr className="bg-gray-50 border-t-2 border-gray-300">
+                      <td colSpan={3}></td>
+                      <td className="px-6 py-4 text-sm font-bold text-gray-900 text-right">TOTAL</td>
+                      <td className="px-6 py-4 text-sm font-bold text-blue-600 text-right">
+                        {getDetailedData().reduce((sum: number, d: any) => sum + d.finishedQuantity + d.damagedQuantity, 0)}
                       </td>
                     </tr>
-                  ))}
-                  <tr className="border-t-2 border-gray-300 bg-gray-50">
-                    <td className="px-4 py-2 text-sm font-bold text-gray-900">Total</td>
-                    <td className="px-4 py-2 text-sm text-right font-bold text-gray-900">
-                      {getDetailedData().reduce((sum: number, d: any) => sum + d.finishedQuantity, 0)}
-                    </td>
-                    <td className="px-4 py-2 text-sm text-right font-bold text-gray-900">
-                      {getDetailedData().reduce((sum: number, d: any) => sum + d.damagedQuantity, 0)}
-                    </td>
-                    <td className="px-4 py-2 text-sm text-right font-bold text-blue-600">
-                      {getDetailedData().reduce((sum: number, d: any) => sum + d.finishedQuantity + d.damagedQuantity, 0)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <div className="flex justify-end mt-6">
-                <button
-                  onClick={() => setSelectedDetail(null)}
-                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
-                >
-                  Close
-                </button>
+                  </tbody>
+                </table>
               </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-white border-t border-gray-100 px-8 py-5 flex justify-end gap-3">
+              <button
+                onClick={handleDetailPDF}
+                className="flex items-center gap-2 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors"
+              >
+                <Download className="w-4 h-4" /> Download PDF
+              </button>
+              <button
+                onClick={() => setSelectedDetail(null)}
+                className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium transition-colors"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

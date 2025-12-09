@@ -1,6 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+
+import LoginPage from "./components/login";
 import Sidebar from "./components/sidebar";
 import Dashboard from "./components/dashboard";
 import SupplyForm from "./components/SupplyForm";
@@ -15,7 +18,28 @@ import InvoiceChangeHistory from "./components/invoiceChangeHistory";
 import BackupRestore from "./components/backupRestore";
 
 export default function Page() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentPage, setCurrentPage] = useState('dashboard');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+    setIsLoggedIn(loggedIn);
+    setLoading(false);
+  }, []);
+
+  const handleLogin = () => {
+    sessionStorage.setItem('isLoggedIn', 'true');
+    setIsLoggedIn(true);
+  };
+
+  if (loading) {
+    return null;
+  }
+
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
 
   const renderPage = () => {
     switch (currentPage) {

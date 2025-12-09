@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Edit, Trash2, Plus, Save, X, Home } from 'lucide-react';
+import { formatDate } from './lib/date-utils';
 import {
   getSupplyInvoices,
   updateSupplyInvoice,
@@ -14,8 +15,6 @@ import {
   ReceiptInvoice
 } from './lib/storage';
 
-// --- CONFIGURATION ---
-// Define the available attributes here to match your screenshot
 const AVAILABLE_ATTRIBUTES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
 interface GoodsRow {
@@ -45,16 +44,13 @@ export default function ChangeInvoice({ onNavigate }: ChangeInvoiceProps) {
   const [narration, setNarration] = useState('');
   const [reason, setReason] = useState('');
 
-  // Supply states
   const [supplyRows, setSupplyRows] = useState<GoodsRow[]>([]);
   
-  // Receipt states
   const [receiptRows, setReceiptRows] = useState<ReceiptRow[]>([]);
   const [receiptInvoiceNumber, setReceiptInvoiceNumber] = useState('');
   const [supplyInvoiceNumber, setSupplyInvoiceNumber] = useState('');
   const [jobWorker, setJobWorker] = useState('');
 
-  // Data
   const [supplyInvoices, setSupplyInvoices] = useState<SupplyInvoice[]>([]);
   const [receiptInvoices, setReceiptInvoices] = useState<ReceiptInvoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -191,30 +187,25 @@ export default function ChangeInvoice({ onNavigate }: ChangeInvoiceProps) {
     }
   };
 
-  // Supply helpers
   const addSupplyRow = () => setSupplyRows([...supplyRows, { id: Date.now().toString(), goodsName: '', quantity: 0 }]);
   const removeSupplyRow = (id: string) => { if (supplyRows.length > 1) setSupplyRows(supplyRows.filter(row => row.id !== id)); };
   const updateSupplyRow = (id: string, field: 'goodsName' | 'quantity', value: string | number) => {
     setSupplyRows(supplyRows.map(row => row.id === id ? { ...row, [field]: value } : row));
   };
 
-  // Receipt helpers
   const addReceiptRow = () => setReceiptRows([...receiptRows, { id: Date.now().toString(), goodsName: '', finishedQuantity: 0, damagedQuantity: 0, attributes: [] }]);
   const removeReceiptRow = (id: string) => { if (receiptRows.length > 1) setReceiptRows(receiptRows.filter(row => row.id !== id)); };
   const updateReceiptRow = (id: string, field: keyof ReceiptRow, value: any) => {
     setReceiptRows(receiptRows.map(row => row.id === id ? { ...row, [field]: value } : row));
   };
 
-  // New Logic: Toggle Attributes
   const toggleAttribute = (rowId: string, attribute: string) => {
     const row = receiptRows.find(r => r.id === rowId);
     if (row) {
       let newAttributes;
       if (row.attributes.includes(attribute)) {
-        // Remove if exists
         newAttributes = row.attributes.filter(a => a !== attribute);
       } else {
-        // Add if not exists
         newAttributes = [...row.attributes, attribute];
       }
       updateReceiptRow(rowId, 'attributes', newAttributes);
@@ -245,7 +236,6 @@ export default function ChangeInvoice({ onNavigate }: ChangeInvoiceProps) {
         <div className="w-[100px]"></div>
       </div>
 
-      {/* Invoice Type Selector */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-3">Invoice Type</label>
         <div className="flex gap-2">
@@ -270,7 +260,6 @@ export default function ChangeInvoice({ onNavigate }: ChangeInvoiceProps) {
         </div>
       </div>
 
-      {/* Invoice Selection Dropdown */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Select {invoiceType === 'supply' ? 'Supply' : 'Receipt'} Invoice to Edit
@@ -284,22 +273,21 @@ export default function ChangeInvoice({ onNavigate }: ChangeInvoiceProps) {
           <option value="">-- Select Invoice --</option>
           {currentInvoices.map((invoice: any) => (
             <option key={invoice.id} value={invoice.id}>
-              {invoiceType === 'supply' ? invoice.invoiceNumber : invoice.receiptInvoiceNumber} - {new Date(invoice.date).toLocaleDateString()}
+              {/* FIXED: Use formatDate for dropdown items */}
+              {invoiceType === 'supply' ? invoice.invoiceNumber : invoice.receiptInvoiceNumber} - {formatDate(invoice.date)}
               ({invoice.items?.length || 0} items)
             </option>
           ))}
         </select>
       </div>
 
-      {/* ================= VIEW MODES ================= */}
-
-      {/* VIEW SUPPLY INVOICE */}
       {selectedInvoice && !isEditing && invoiceType === 'supply' && (
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <span className="text-xs text-gray-500">Date</span>
-              <div className="text-sm text-gray-800">{new Date(selectedInvoice.date).toLocaleDateString()}</div>
+              {/* FIXED: Use formatDate for View Mode */}
+              <div className="text-sm text-gray-800">{formatDate(selectedInvoice.date)}</div>
             </div>
             <div>
               <span className="text-xs text-gray-500">Invoice Number</span>
@@ -342,13 +330,13 @@ export default function ChangeInvoice({ onNavigate }: ChangeInvoiceProps) {
         </div>
       )}
 
-      {/* VIEW RECEIPT INVOICE */}
       {selectedInvoice && !isEditing && invoiceType === 'receipt' && (
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <span className="text-xs text-gray-500">Date</span>
-              <div className="text-sm text-gray-800">{new Date(selectedInvoice.date).toLocaleDateString()}</div>
+              {/* FIXED: Use formatDate for View Mode */}
+              <div className="text-sm text-gray-800">{formatDate(selectedInvoice.date)}</div>
             </div>
             <div>
               <span className="text-xs text-gray-500">Receipt Invoice Number</span>
@@ -403,9 +391,6 @@ export default function ChangeInvoice({ onNavigate }: ChangeInvoiceProps) {
         </div>
       )}
 
-      {/* ================= EDIT MODES ================= */}
-
-      {/* EDIT SUPPLY INVOICE */}
       {isEditing && invoiceType === 'supply' && (
         <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="bg-white rounded-lg shadow-md p-6">
           <div className="grid grid-cols-2 gap-4 mb-4">
@@ -469,7 +454,6 @@ export default function ChangeInvoice({ onNavigate }: ChangeInvoiceProps) {
         </form>
       )}
 
-      {/* EDIT RECEIPT INVOICE (New Attribute Logic) */}
       {isEditing && invoiceType === 'receipt' && (
         <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="bg-white rounded-lg shadow-md p-6">
           <div className="grid grid-cols-2 gap-4 mb-4">
@@ -501,7 +485,6 @@ export default function ChangeInvoice({ onNavigate }: ChangeInvoiceProps) {
             <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Explain why you are changing this invoice..." rows={2} required className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
           </div>
           
-          {/* Receipt Items Table with Predefined Attributes */}
           <div>
             <span className="block text-xs text-gray-500 mb-2">Goods</span>
             <table className="w-full border">
@@ -527,7 +510,6 @@ export default function ChangeInvoice({ onNavigate }: ChangeInvoiceProps) {
                       <input type="number" min="0" value={row.damagedQuantity} onChange={(e) => updateReceiptRow(row.id, 'damagedQuantity', Math.max(0, parseInt(e.target.value) || 0))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-right" />
                     </td>
                     <td className="px-3 py-2 align-top">
-                      {/* PREDEFINED ATTRIBUTES UI */}
                       <div className="flex flex-wrap gap-1.5">
                         {AVAILABLE_ATTRIBUTES.map(attr => {
                           const isSelected = row.attributes.includes(attr);

@@ -7,8 +7,9 @@ import {
   importAllData, 
   getBackupHistory, 
   addBackupHistoryEntry,
-  clearDatabase // Make sure to import the function we added above
+  clearDatabase 
 } from './lib/storage';
+import { formatDateTime } from './lib/date-utils';
 
 interface BackupRestoreProps {
   onNavigate: (page: string) => void;
@@ -21,7 +22,6 @@ export default function BackupRestore({ onNavigate }: BackupRestoreProps) {
   const [backupHistory, setBackupHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // We need to know which mode the user clicked: 'merge' or 'replace'
   const [restoreMode, setRestoreMode] = useState<'merge' | 'replace'>('merge');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -44,7 +44,6 @@ export default function BackupRestore({ onNavigate }: BackupRestoreProps) {
     }
   };
 
-  // --- BACKUP LOGIC ---
   const handleBackup = async () => {
     try {
       setRestoreStatus('processing');
@@ -57,6 +56,7 @@ export default function BackupRestore({ onNavigate }: BackupRestoreProps) {
       setRestoreMessage('Creating backup file...');
       const blob = new Blob([data], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
+      // Filename uses standard ISO format (YYYY-MM-DD) for better file sorting
       const filename = `inventory-backup-${new Date().toISOString().split('T')[0]}.json`;
       const a = document.createElement('a');
       a.href = url;
@@ -94,7 +94,6 @@ export default function BackupRestore({ onNavigate }: BackupRestoreProps) {
     }
   };
 
-  // --- RESTORE TRIGGER ---
   const triggerRestore = (mode: 'merge' | 'replace') => {
     if (mode === 'replace') {
       const confirmDelete = window.confirm("CRITICAL WARNING: This will DELETE ALL EXISTING DATA from the database and replace it with the backup. Are you sure?");
@@ -104,7 +103,6 @@ export default function BackupRestore({ onNavigate }: BackupRestoreProps) {
     fileInputRef.current?.click();
   };
 
-  // --- RESTORE LOGIC ---
   const handleRestoreFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -113,7 +111,6 @@ export default function BackupRestore({ onNavigate }: BackupRestoreProps) {
     setProgress(0);
 
     try {
-      // 1. If Replace mode, Clear Database first
       if (restoreMode === 'replace') {
         setRestoreMessage('Clearing existing database...');
         setProgress(10);
@@ -127,7 +124,6 @@ export default function BackupRestore({ onNavigate }: BackupRestoreProps) {
 
       reader.onprogress = (e: ProgressEvent<FileReader>) => {
         if (e.lengthComputable) {
-          // Map read progress to 20-50% range
           const percentComplete = 20 + (e.loaded / e.total) * 30;
           setProgress(percentComplete);
         }
@@ -140,7 +136,6 @@ export default function BackupRestore({ onNavigate }: BackupRestoreProps) {
           setRestoreMessage('Uploading data to Supabase...');
           setProgress(60);
 
-          // 2. Import Data
           const success = await importAllData(content);
 
           if (success) {
@@ -179,7 +174,6 @@ export default function BackupRestore({ onNavigate }: BackupRestoreProps) {
       setRestoreMessage('An error occurred during initialization.');
     }
 
-    // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -210,7 +204,6 @@ export default function BackupRestore({ onNavigate }: BackupRestoreProps) {
         <div className="w-24"></div>
       </div>
 
-      {/* --- Hidden File Input --- */}
       <input
         ref={fileInputRef}
         type="file"
@@ -221,7 +214,6 @@ export default function BackupRestore({ onNavigate }: BackupRestoreProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         
-        {/* 1. BACKUP CARD */}
         <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-blue-500">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -242,7 +234,6 @@ export default function BackupRestore({ onNavigate }: BackupRestoreProps) {
           </button>
         </div>
 
-        {/* 2. RESTORE (REPLACE) CARD */}
         <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-red-500">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
@@ -263,7 +254,6 @@ export default function BackupRestore({ onNavigate }: BackupRestoreProps) {
           </button>
         </div>
 
-        {/* 3. RESTORE (MERGE) CARD */}
         <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-orange-500">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
@@ -291,7 +281,6 @@ export default function BackupRestore({ onNavigate }: BackupRestoreProps) {
 
       </div>
 
-      {/* STATUS BAR */}
       {restoreStatus !== 'idle' && (
         <div className="bg-white rounded-lg shadow-md p-6 mb-8 animate-in fade-in slide-in-from-bottom-4">
           <div className="flex items-center gap-3 mb-4">
@@ -326,7 +315,6 @@ export default function BackupRestore({ onNavigate }: BackupRestoreProps) {
         </div>
       )}
 
-      {/* HISTORY TABLE */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
           <div className="flex items-center gap-2">
@@ -354,8 +342,8 @@ export default function BackupRestore({ onNavigate }: BackupRestoreProps) {
                 backupHistory.map((entry: any) => (
                   <tr key={entry.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(entry.timestamp).toLocaleDateString()}{' '}
-                      {new Date(entry.timestamp).toLocaleTimeString()}
+                      {/* Fixed: Uses formatDateTime for strict locale consistency */}
+                      {formatDateTime(entry.timestamp)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {entry.type === 'backup' ? (

@@ -3,7 +3,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Home, X } from 'lucide-react';
 import { getInvoiceChanges, InvoiceChange } from './lib/storage';
-import { supabase } from './lib/supabase'; // Access DB directly to fetch current form data
+import { supabase } from './lib/supabase';
+import { formatDate, formatDateTime } from './lib/date-utils';
 
 interface InvoiceChangeHistoryProps {
   onNavigate: (page: string) => void;
@@ -45,7 +46,7 @@ function InvoicePreviewModal({
             <div>
               <label className="block text-xs font-medium text-gray-500 uppercase">Date</label>
               <div className="mt-1 text-sm font-medium text-gray-900">
-                {new Date(data.date).toLocaleDateString()}
+                {formatDate(data.date)}
               </div>
             </div>
             <div>
@@ -130,7 +131,6 @@ export default function InvoiceChangeHistory({ onNavigate }: InvoiceChangeHistor
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'supply' | 'receipt'>('supply');
   
-  // Preview State
   const [previewData, setPreviewData] = useState<any>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
 
@@ -146,14 +146,12 @@ export default function InvoiceChangeHistory({ onNavigate }: InvoiceChangeHistor
 
   const filteredChanges = useMemo(() => {
     return changes.filter(change => {
-      // Determine type based on recorded details/reason keywords
       const txt = (change.changeDetails + change.reason).toLowerCase();
       const isReceipt = txt.includes('receipt') || txt.includes('finished') || txt.includes('damaged');
       return activeTab === 'receipt' ? isReceipt : !isReceipt;
     });
   }, [changes, activeTab]);
 
-  // Fetch actual Invoice Data from DB
   const handlePreviewClick = async (invoiceId: string) => {
     if (!invoiceId) return;
     setLoadingPreview(true);
@@ -193,7 +191,6 @@ export default function InvoiceChangeHistory({ onNavigate }: InvoiceChangeHistor
 
   return (
     <div className="p-8">
-      {/* Header */}
       <div className="flex items-center gap-2 mb-6">
         <button
           onClick={() => onNavigate('dashboard')}
@@ -204,7 +201,6 @@ export default function InvoiceChangeHistory({ onNavigate }: InvoiceChangeHistor
         <h1 className="text-2xl font-bold text-gray-900 ml-3">Invoice Change History</h1>
       </div>
 
-      {/* Tabs */}
       <div className="bg-white p-2 rounded-lg border border-gray-200 inline-flex mb-6 shadow-sm">
         <button
           onClick={() => setActiveTab('supply')}
@@ -224,7 +220,6 @@ export default function InvoiceChangeHistory({ onNavigate }: InvoiceChangeHistor
         </button>
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden min-h-[400px]">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -239,7 +234,7 @@ export default function InvoiceChangeHistory({ onNavigate }: InvoiceChangeHistor
               filteredChanges.map((change) => (
                 <tr key={change.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(change.changeDate).toLocaleString()}
+                    {formatDateTime(change.changeDate)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
@@ -266,7 +261,6 @@ export default function InvoiceChangeHistory({ onNavigate }: InvoiceChangeHistor
         </table>
       </div>
 
-      {/* Actual Invoice Data Modal */}
       {previewData && (
         <InvoicePreviewModal 
           data={previewData} 
