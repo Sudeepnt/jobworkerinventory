@@ -296,10 +296,7 @@ export default function OriginalSupplyReport({ onNavigate }: OriginalSupplyRepor
               Close Preview
             </button>
           </div>
-          
-          <div className="mt-2 text-xs text-gray-400 text-right">
-            Generated on: {formatDateTime(new Date())}
-          </div>
+   
         </div>
       )}
     </div>

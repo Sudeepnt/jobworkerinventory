@@ -11,12 +11,9 @@ interface GoodsReportProps {
   onNavigate: (page: string) => void;
 }
 
-// --- BILL STYLE MODAL ---
 function GoodHistoryModal({ data, onClose }: { data: any, onClose: () => void }) {
   if (!data) return null;
 
-  // Show ONLY Receipts to match the requested columns (Rec Qty, Finished, Damaged)
-  // This removes the "empty" supply rows that had no data for these columns
   const rows = [
     ...data.transactions.receipts.map((r: any) => ({
       date: r.date,
@@ -40,10 +37,8 @@ function GoodHistoryModal({ data, onClose }: { data: any, onClose: () => void })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4">
-      {/* Paper/Bill Container */}
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-5xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
         
-        {/* Header */}
         <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-lg">
           <div>
             <h3 className="font-bold text-xl text-gray-900">{data.name} History</h3>
@@ -57,7 +52,6 @@ function GoodHistoryModal({ data, onClose }: { data: any, onClose: () => void })
           </button>
         </div>
 
-        {/* Scrollable Bill Body */}
         <div className="flex-1 overflow-y-auto p-8 bg-white min-h-[400px]">
           <div className="border border-gray-200 rounded-lg overflow-hidden mb-8">
             <table className="min-w-full divide-y divide-gray-200">
@@ -102,11 +96,9 @@ function GoodHistoryModal({ data, onClose }: { data: any, onClose: () => void })
             </table>
           </div>
           
-          {/* Visual "Gap" at bottom - Larger to look like a bill/paper end */}
           <div className="h-24 w-full border-t-2 border-dashed border-gray-100 mt-4"></div>
         </div>
 
-        {/* Footer with Close Button Right Aligned */}
         <div className="px-8 py-5 bg-gray-50 border-t border-gray-200 flex justify-end rounded-b-lg">
           <button 
             onClick={onClose} 
@@ -119,8 +111,6 @@ function GoodHistoryModal({ data, onClose }: { data: any, onClose: () => void })
     </div>
   );
 }
-
-// --- MAIN PAGE ---
 
 export default function GoodsReport({ onNavigate }: GoodsReportProps) {
   const [dateRange, setDateRange] = useState('today');
@@ -151,7 +141,6 @@ export default function GoodsReport({ onNavigate }: GoodsReportProps) {
     loadData();
   }, []);
 
-  // Filter Data based on Date Range
   const filteredSupplies = useMemo(() => {
     const now = new Date();
     let startDate = new Date();
@@ -188,7 +177,6 @@ export default function GoodsReport({ onNavigate }: GoodsReportProps) {
     });
   }, [receiptInvoices, dateRange, customStartDate, customEndDate]);
 
-  // Aggregate Data
   const baseReportData = useMemo(() => {
     return goods.map((good: any) => {
       let suppliedQty = 0;
@@ -234,6 +222,7 @@ export default function GoodsReport({ onNavigate }: GoodsReportProps) {
       
       return {
         name: good.name,
+        createdAt: good.createdAt || good.created_at,
         stockWithJobWorker,
         receivedQty,
         finishedQty,
@@ -246,7 +235,6 @@ export default function GoodsReport({ onNavigate }: GoodsReportProps) {
     });
   }, [goods, filteredSupplies, filteredReceipts]);
 
-  // Search Filter
   const finalDisplayData = useMemo(() => {
     if (!searchQuery.trim()) return baseReportData;
     return baseReportData.filter(item => 
@@ -254,9 +242,9 @@ export default function GoodsReport({ onNavigate }: GoodsReportProps) {
     );
   }, [baseReportData, searchQuery]);
 
-  // Global Exports
   const handleExportPDF = () => {
     const data = finalDisplayData.map((item: any) => [
+      item.createdAt ? formatDate(item.createdAt) : 'N/A',
       item.name,
       Math.round(item.stockWithJobWorker).toString(),
       Math.round(item.receivedQty).toString(),
@@ -264,8 +252,8 @@ export default function GoodsReport({ onNavigate }: GoodsReportProps) {
       Math.round(item.damagedQty).toString(),
     ]);
     generatePDF(
-      `Goods Report (${dateRange})`,
-      ['Goods Name', 'Stock Pending', 'Total Recv', 'Finished', 'Damaged'],
+      `Goods Report`,
+      ['Created Date', 'Goods Name', 'Stock Pending', 'Total Recv', 'Finished', 'Damaged'],
       data,
       `goods-report-${Date.now()}.pdf`
     );
@@ -273,6 +261,7 @@ export default function GoodsReport({ onNavigate }: GoodsReportProps) {
 
   const handleExportExcel = () => {
     const data = finalDisplayData.map((item: any) => ({
+      'Created Date': item.createdAt ? formatDate(item.createdAt) : 'N/A',
       'Goods Name': item.name,
       'Stock with Job Worker': Math.round(item.stockWithJobWorker),
       'Received Qty': Math.round(item.receivedQty),
@@ -295,7 +284,6 @@ export default function GoodsReport({ onNavigate }: GoodsReportProps) {
 
   return (
     <div className="p-8">
-      {/* Page Header */}
       <div className="flex justify-between items-center mb-6">
         <button
           onClick={() => onNavigate('dashboard')}
@@ -320,7 +308,6 @@ export default function GoodsReport({ onNavigate }: GoodsReportProps) {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col md:flex-row gap-6 justify-between">
@@ -393,11 +380,13 @@ export default function GoodsReport({ onNavigate }: GoodsReportProps) {
         </div>
       </div>
 
-      {/* Main Stock Table */}
       <div className="bg-white rounded-lg shadow-md overflow-x-auto min-h-[400px]">
         <table className="min-w-full divide-y divide-gray-200">
           <thead>
             <tr>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                Created Date
+              </th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
                 Goods Name
               </th>
@@ -422,6 +411,9 @@ export default function GoodsReport({ onNavigate }: GoodsReportProps) {
             {finalDisplayData.length > 0 ? (
               finalDisplayData.map((item: any, idx: number) => (
                 <tr key={idx} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {item.createdAt ? formatDate(item.createdAt) : 'N/A'}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{item.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap font-semibold text-orange-600">{Math.round(item.stockWithJobWorker)}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{Math.round(item.receivedQty)}</td>
@@ -440,7 +432,7 @@ export default function GoodsReport({ onNavigate }: GoodsReportProps) {
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-500">
+                <td colSpan={7} className="px-6 py-12 text-center text-sm text-gray-500">
                   No data available.
                 </td>
               </tr>
@@ -449,7 +441,6 @@ export default function GoodsReport({ onNavigate }: GoodsReportProps) {
         </table>
       </div>
 
-      {/* Simple Table Modal */}
       {selectedGood && (
         <GoodHistoryModal 
           data={selectedGood} 

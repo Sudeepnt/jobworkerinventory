@@ -385,10 +385,7 @@ export default function ReceiptReport({ onNavigate }: ReceiptReportProps) {
                     Close
                   </button>
                 </div>
-                {/* FIXED THIS LINE BELOW */}
-                <div className="mt-4 text-xs text-gray-400 text-right">
-                  Generated on {formatDateTime(new Date())}
-                </div>
+             
               </div>
             </div>
           </div>

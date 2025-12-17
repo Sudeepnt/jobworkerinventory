@@ -415,10 +415,7 @@ export default function DynamicSupplyReport({ onNavigate }: DynamicSupplyReportP
               Close Preview
             </button>
           </div>
-          
-          <div className="mt-2 text-xs text-gray-400 text-right">
-            Generated on: {formatDateTime(new Date())}
-          </div>
+    
         </div>
       )}
     </div>

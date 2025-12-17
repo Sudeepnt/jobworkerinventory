@@ -20,15 +20,6 @@ export function generatePDF(title: string, headers: string[], data: any[][], fil
     headStyles: { fillColor: [59, 130, 246] },
   });
   
-  // Add footer with date and time
-  const pageCount = doc.internal.pages.length - 1;
-  const pageHeight = doc.internal.pageSize.height;
-  doc.setFontSize(8);
-  doc.text(
-    `Generated on: ${new Date().toLocaleString()}`,
-    14,
-    pageHeight - 10
-  );
   
   // Save the PDF
   doc.save(filename);
@@ -63,14 +54,6 @@ export function generateInvoicePDF(
     headStyles: { fillColor: [59, 130, 246] },
   });
   
-  // Footer
-  const pageHeight = doc.internal.pageSize.height;
-  doc.setFontSize(8);
-  doc.text(
-    `Generated on: ${new Date().toLocaleString()}`,
-    14,
-    pageHeight - 10
-  );
-  
+ 
   doc.save(filename);
 }
