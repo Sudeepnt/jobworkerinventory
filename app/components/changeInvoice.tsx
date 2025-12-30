@@ -124,50 +124,119 @@ export default function ChangeInvoice({ onNavigate }: ChangeInvoiceProps) {
     setIsEditing(false); 
   };
 
-  const handleSave = async () => {
-    if (!reason.trim()) { alert('Please enter a reason for changing this invoice'); return; }
-    setSaving(true);
-    try {
-      if (invoiceType === 'supply') {
-        if (!invoiceNumber.trim()) { alert('Please enter invoice number'); setSaving(false); return; }
-        const validRows = supplyRows.filter(row => row.goodsName.trim() && row.quantity > 0);
-        if (validRows.length === 0) { alert('Enter at least one item'); setSaving(false); return; }
-        
-        for (const row of validRows) { await addGoods(row.goodsName); }
-        
-        await updateSupplyInvoice(selectedInvoiceId, {
-          date, invoiceNumber, narration,
-          items: validRows.map(row => ({ goodsName: row.goodsName, quantity: row.quantity }))
-        }, reason);
-        alert('Supply invoice updated successfully!');
-      } else {
-        if (!receiptInvoiceNumber.trim()) { alert('Please enter receipt invoice number'); setSaving(false); return; }
-        const validRows = receiptRows.filter(row =>
-          row.goodsName.trim() && (row.finishedQuantity > 0 || row.damagedQuantity > 0)
-        );
-        if (validRows.length === 0) { alert('Enter at least one item with quantities'); setSaving(false); return; }
-        
-        await updateReceiptInvoice(selectedInvoiceId, {
-          date, receiptInvoiceNumber, supplyInvoiceNumber, jobWorker, narration,
-          items: validRows.map(row => ({
-            goodsName: row.goodsName,
-            finishedQuantity: row.finishedQuantity,
-            damagedQuantity: row.damagedQuantity,
-            attributes: row.attributes
-          }))
-        }, reason);
-        alert('Receipt invoice updated successfully!');
+
+
+
+
+
+const handleSave = async () => {
+  if (!reason.trim()) { 
+    alert('Please enter a reason for changing this invoice'); 
+    return; 
+  }
+  
+  setSaving(true);
+  
+  try {
+    if (invoiceType === 'supply') {
+      if (!invoiceNumber.trim()) { 
+        alert('Please enter invoice number'); 
+        setSaving(false); 
+        return; 
       }
-      await loadInvoices();
-      setIsEditing(false); setReason('');
-      handleSelectInvoice(selectedInvoiceId);
-    } catch (error) {
-      console.error('Save error:', error);
-      alert('Error updating invoice. Please try again.');
-    } finally {
-      setSaving(false);
+      
+      const validRows = supplyRows.filter(row => row.goodsName.trim() && row.quantity > 0);
+      
+      if (validRows.length === 0) { 
+        alert('Enter at least one item'); 
+        setSaving(false); 
+        return; 
+      }
+      
+      for (const row of validRows) { 
+        await addGoods(row.goodsName); 
+      }
+      
+      await updateSupplyInvoice(selectedInvoiceId, {
+        date, 
+        invoiceNumber, 
+        narration,
+        items: validRows.map(row => ({ 
+          goodsName: row.goodsName, 
+          quantity: row.quantity 
+        }))
+      }, reason);
+      
+      alert('Supply invoice updated successfully!');
+      
+    } else {
+      if (!receiptInvoiceNumber.trim()) { 
+        alert('Please enter receipt invoice number'); 
+        setSaving(false); 
+        return; 
+      }
+      
+      if (!supplyInvoiceNumber.trim()) { 
+        alert('Please select a supply invoice'); 
+        setSaving(false); 
+        return; 
+      }
+      
+      const validRows = receiptRows.filter(row =>
+        row.goodsName.trim() && (row.finishedQuantity > 0 || row.damagedQuantity > 0)
+      );
+      
+      if (validRows.length === 0) { 
+        alert('Enter at least one item with quantities'); 
+        setSaving(false); 
+        return; 
+      }
+
+      const matchingSupply = supplyInvoices.find(inv => inv.invoiceNumber === supplyInvoiceNumber);
+      
+      if (!matchingSupply) {
+        alert(`Supply invoice "${supplyInvoiceNumber}" not found. Please select a valid supply invoice.`);
+        setSaving(false);
+        return;
+      }
+
+      await updateReceiptInvoice(selectedInvoiceId, {
+        date, 
+        receiptInvoiceNumber, 
+        supplyInvoiceNumber, 
+        supplyInvoiceId: matchingSupply.id,
+        jobWorker, 
+        narration,
+        items: validRows.map(row => ({
+          goodsName: row.goodsName,
+          finishedQuantity: row.finishedQuantity,
+          damagedQuantity: row.damagedQuantity,
+          attributes: row.attributes
+        }))
+      }, reason);
+      
+      alert('Receipt invoice updated successfully!');
     }
-  };
+    
+    await loadInvoices();
+    setIsEditing(false); 
+    setReason('');
+    handleSelectInvoice(selectedInvoiceId);
+    
+  } catch (error) {
+    console.error('Save error:', error);
+    alert('Error updating invoice. Please try again.');
+  } finally {
+    setSaving(false);
+  }
+};
+
+
+
+
+
+
+
 
   const handleDelete = async () => {
     if (!selectedInvoiceId) return;
@@ -467,10 +536,27 @@ export default function ChangeInvoice({ onNavigate }: ChangeInvoiceProps) {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Supply Invoice Number</label>
-              <input type="text" value={supplyInvoiceNumber} onChange={(e) => setSupplyInvoiceNumber(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
-            </div>
+
+          <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Supply Invoice *
+                  </label>
+                  <select
+                    value={supplyInvoiceNumber}
+                    onChange={(e) => setSupplyInvoiceNumber(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">-- Select Supply Invoice --</option>
+                    {supplyInvoices.map((inv) => (
+                      <option key={inv.id} value={inv.invoiceNumber}>
+                        {inv.invoiceNumber} - {formatDate(inv.date)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Job Worker</label>
               <input type="text" value={jobWorker} onChange={(e) => setJobWorker(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />

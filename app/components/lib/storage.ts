@@ -395,6 +395,7 @@ export async function addReceiptInvoice(invoice: Omit<ReceiptInvoice, 'id' | 'cr
   };
 }
 
+
 export async function updateReceiptInvoice(id: string, update: Partial<Omit<ReceiptInvoice, 'id' | 'createdAt'>>, reason: string) {
   const { data: oldData } = await supabase
     .from('receipt_invoices')
@@ -406,15 +407,35 @@ export async function updateReceiptInvoice(id: string, update: Partial<Omit<Rece
 
   const changeDetails = generateDiff(oldData, update, 'receipt');
 
+  const updatePayload: any = {};
+
+  if (update.date !== undefined) {
+    updatePayload.date = update.date;
+  }
+
+  if (update.receiptInvoiceNumber !== undefined) {
+    updatePayload.receipt_invoice_number = update.receiptInvoiceNumber;
+  }
+
+  if (update.supplyInvoiceNumber !== undefined) {
+    updatePayload.supply_invoice_number = update.supplyInvoiceNumber;
+  }
+
+  if (update.supplyInvoiceId !== undefined) {
+    updatePayload.supply_invoice_id = update.supplyInvoiceId;
+  }
+
+  if (update.jobWorker !== undefined) {
+    updatePayload.job_worker = update.jobWorker;
+  }
+
+  if (update.narration !== undefined) {
+    updatePayload.narration = update.narration;
+  }
+
   const { error: invoiceError } = await supabase
     .from('receipt_invoices')
-    .update({
-      date: update.date,
-      receipt_invoice_number: update.receiptInvoiceNumber,
-      supply_invoice_number: update.supplyInvoiceNumber,
-      job_worker: update.jobWorker,
-      narration: update.narration
-    })
+    .update(updatePayload)
     .eq('id', id);
 
   if (invoiceError) throw new Error(`Error updating receipt invoice: ${invoiceError.message}`);
@@ -441,6 +462,10 @@ export async function updateReceiptInvoice(id: string, update: Partial<Omit<Rece
     changeDetails
   });
 }
+
+
+
+
 
 export async function deleteReceiptInvoice(id: string) {
   await supabase.from('receipt_invoice_items').delete().eq('receipt_invoice_id', id);
