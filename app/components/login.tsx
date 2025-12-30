@@ -86,7 +86,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           </div>
           
           <h1 className="text-4xl font-black text-black mb-2 tracking-tight">LKO Job Work</h1>
-          <p className="text-gray-500 font-medium">Enter Crodal 4-digit PIN</p>
+          <p className="text-gray-500 font-medium">Enter Crodal's 4-digit PIN</p>
         </div>
         
         <form onSubmit={handleSubmit}>
